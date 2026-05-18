@@ -46,6 +46,7 @@ const app = {
     resources: [],
     visuals: []
   },
+  globalStore: null,
   store: null
 };
 
@@ -58,14 +59,14 @@ async function init() {
   try {
     app.store = loadStore();
     const loaded = await Promise.all([
-      loadCsv(files.lessons),
-      loadCsv(files.flashcards),
-      loadCsv(files.quizzes),
-      loadCsv(files.ingredients),
-      loadCsv(files.protocols),
-      loadCsv(files.cases),
-      loadCsv(files.resources),
-      loadCsv(files.visuals)
+      loadCsv(files.lessons, "lessons"),
+      loadCsv(files.flashcards, "flashcards"),
+      loadCsv(files.quizzes, "quizzes"),
+      loadCsv(files.ingredients, "ingredients"),
+      loadCsv(files.protocols, "protocols"),
+      loadCsv(files.cases, "cases"),
+      loadCsv(files.resources, "resources"),
+      loadCsv(files.visuals, "visuals")
     ]);
     [app.data.lessons, app.data.flashcards, app.data.quizzes, app.data.ingredients, app.data.protocols, app.data.cases, app.data.resources, app.data.visuals] = loaded;
     setupControls();
@@ -106,6 +107,44 @@ function setupControls() {
     const lesson = nextLesson();
     openLesson(lesson.lesson);
   });
+  const profileBtn = document.getElementById('profileBtn');
+  const profileDropdown = document.getElementById('profileDropdown');
+  if (profileBtn) {
+    profileBtn.addEventListener('click', () => {
+      const expanded = profileBtn.getAttribute('aria-expanded') === 'true';
+      profileBtn.setAttribute('aria-expanded', !expanded);
+      profileDropdown.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.profile-switcher')) {
+        profileBtn.setAttribute('aria-expanded', 'false');
+        profileDropdown.classList.add('hidden');
+      }
+    });
+    document.querySelectorAll('.profile-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const profile = opt.dataset.profile;
+        switchProfile(profile);
+        profileBtn.setAttribute('aria-expanded', 'false');
+        profileDropdown.classList.add('hidden');
+      });
+    });
+  }
+
+  const toggleBtn = document.getElementById("toggleSidebarBtn");
+  if (toggleBtn) {
+    if (app.globalStore && app.globalStore.sidebarCollapsed) {
+      document.querySelector(".academy-shell").classList.add("sidebar-collapsed");
+    }
+    toggleBtn.addEventListener("click", () => {
+      const shell = document.querySelector(".academy-shell");
+      const isCollapsed = shell.classList.toggle("sidebar-collapsed");
+      if (app.globalStore) {
+        app.globalStore.sidebarCollapsed = isCollapsed;
+        saveStore();
+      }
+    });
+  }
 }
 
 function render() {
@@ -123,29 +162,38 @@ function render() {
     cases: renderCases,
     ingredients: renderIngredients,
     protocols: renderProtocols,
+    anatomy: renderAnatomy,
     flashcards: renderFlashcards,
     quizzes: renderQuizzes,
     resources: renderResources,
     progress: renderProgress,
-    achievements: renderAchievements
+    achievements: renderAchievements,
+    admin: renderAdmin
   };
+  
+  if (app.view === "admin" && app.globalStore.activeProfile !== "admin") {
+    app.view = "home";
+  }
+  
   (routes[app.view] || renderHome)();
 }
 
 function titleForView(viewName) {
   return {
     home: "Inicio",
-    roadmap: "Ruta de 12 semanas",
+    roadmap: "Ruta de estudio",
     today: "Lección de hoy",
     diagnosis: "Diagnóstico guiado",
     cases: "Casos prácticos",
     ingredients: "Ingredientes",
     protocols: "Protocolos",
+    anatomy: "Visor Anatómico",
     flashcards: "Flashcards",
     quizzes: "Quizzes",
     resources: "Recursos",
     progress: "Progreso",
-    achievements: "Logros"
+    achievements: "Logros",
+    admin: "Administración"
   }[viewName] || "Inicio";
 }
 
@@ -158,11 +206,13 @@ function kickerForView(viewName) {
     cases: "Práctica con imágenes reales",
     ingredients: "Lectura de activos y etiquetas",
     protocols: "Criterio de cabina",
+    anatomy: "Músculos y drenaje facial interactivo",
     flashcards: "Repaso activo",
     quizzes: "Evaluación sin pistas",
     resources: "Fuentes y enlaces",
     progress: "Historial local",
-    achievements: "Gamificación"
+    achievements: "Gamificación",
+    admin: "Panel de control"
   }[viewName] || "Academia local";
 }
 
@@ -183,7 +233,7 @@ function renderHome() {
     <section class="hero-panel">
       <div>
         <p class="kicker">Bienvenida, Ivania</p>
-        <h2>Semana actual: ${summary.currentWeek} de 12</h2>
+        <h2>Semana actual: ${summary.currentWeek} de ${summary.totalWeeks}</h2>
         <p class="muted">Sesión sugerida de hoy: ${escapeHtml(today.week)} · ${escapeHtml(today.day)}</p>
       </div>
       <div class="hero-score">
@@ -506,57 +556,198 @@ function renderQuizResults(questions) {
   });
 }
 
+let flashSwiper = null;
+
 function renderFlashcards() {
   const cards = filterRows(app.data.flashcards.filter((card) => field(card, "Semana") === app.week));
   if (!cards.length) {
     view.innerHTML = `<section class="empty-state">No hay flashcards para esta búsqueda.</section>`;
     return;
   }
-  app.flashIndex = Math.min(app.flashIndex, cards.length - 1);
-  const card = cards[app.flashIndex];
-  const cardId = idFor(field(card, "Pregunta"));
-  const status = app.store.flashcards[cardId]?.status || "pending";
-  const pendingCount = cards.filter((item) => (app.store.flashcards[idFor(field(item, "Pregunta"))]?.status || "pending") !== "known").length;
 
   view.innerHTML = `
-    <section class="academy-card flash-shell">
+    <div class="flashcards-container">
+      <div class="swiper flash-swiper">
+        <div class="swiper-wrapper">
+          ${cards.map((card) => {
+            const cardId = idFor(field(card, "Pregunta"));
+            const status = app.store.flashcards[cardId]?.status || "pending";
+            return `
+              <div class="swiper-slide">
+                <div class="flashcard-3d" data-flip-card>
+                  <div class="card-face front">
+                    <div class="card-header-mini">
+                      <span class="tag">${escapeHtml(field(card, "Tema"))}</span>
+                      <span class="status-pill ${status}" data-status-pill="${escapeAttr(cardId)}">${statusLabel(status)}</span>
+                    </div>
+                    <div class="card-body-content">
+                      <p class="kicker">Pregunta de Repaso</p>
+                      <h3>${escapeHtml(field(card, "Pregunta"))}</h3>
+                      <small class="touch-hint">Toca para voltear</small>
+                    </div>
+                  </div>
+                  <div class="card-face back">
+                    <div class="card-header-mini">
+                      <span class="tag">Respuesta</span>
+                    </div>
+                    <div class="card-body-content">
+                      <p>${escapeHtml(field(card, "Respuesta"))}</p>
+                    </div>
+                    <div class="card-actions-inner">
+                      <button class="pill-btn flash-mark-btn" data-mark-flash="${escapeAttr(cardId)}" data-mark-status="known" type="button">Lo sé</button>
+                      <button class="pill-btn secondary flash-mark-btn" data-mark-flash="${escapeAttr(cardId)}" data-mark-status="review" type="button">Repasar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <div class="swiper-pagination"></div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
+      </div>
+      <div class="flash-counter muted">${cards.length} tarjetas · ${app.week}</div>
+    </div>
+  `;
+
+  // Delegación de flip
+  view.querySelectorAll("[data-flip-card]").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".flash-mark-btn")) return;
+      card.classList.toggle("flipped");
+    });
+  });
+
+  // Delegación de "Lo sé" / "Repasar" — actualiza in-place sin destruir Swiper
+  view.querySelectorAll(".flash-mark-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cardId = btn.dataset.markFlash;
+      const status = btn.dataset.markStatus;
+      app.store.flashcards[cardId] = { status, updatedAt: new Date().toISOString() };
+      if (status === "known") {
+        app.store.points += points.flashcard;
+        addActivity("points", `Repasaste flashcard (+${points.flashcard} pts)`);
+      }
+      checkAchievements();
+      saveStore();
+
+      // Actualizar pill in-place
+      const pill = view.querySelector(`[data-status-pill="${cardId}"]`);
+      if (pill) { pill.className = `status-pill ${status}`; pill.textContent = statusLabel(status); }
+
+      // Desflipear y avanzar
+      const cardEl = btn.closest(".flashcard-3d");
+      if (cardEl) cardEl.classList.remove("flipped");
+      setTimeout(() => { if (flashSwiper) flashSwiper.slideNext(); }, 400);
+    });
+  });
+
+  // Inicializar Swiper
+  setTimeout(() => {
+    if (flashSwiper) { try { flashSwiper.destroy(true, true); } catch {} }
+    flashSwiper = new Swiper(".flash-swiper", {
+      effect: "cards",
+      grabCursor: true,
+      cardsEffect: { perSlideOffset: 8, perSlideRotate: 2, rotate: true },
+      navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" },
+      pagination: { el: ".swiper-pagination", dynamicBullets: true }
+    });
+  }, 60);
+}
+
+/* ── Visor Anatómico Interactivo ── */
+
+let anatomyMapInstance = null;
+
+function renderAnatomy() {
+  view.innerHTML = `
+    <section class="anatomy-viewer-panel academy-card">
       <div class="section-head">
         <div>
-          <p class="kicker">${escapeHtml(field(card, "Semana"))} · ${escapeHtml(field(card, "Tema"))}</p>
-          <h2>Tarjeta ${app.flashIndex + 1} de ${cards.length}</h2>
-          <p class="muted">Pendientes: ${pendingCount}</p>
+          <p class="kicker">Visor Anatómico</p>
+          <h2>Músculos y drenaje facial interactivo</h2>
+          <p class="muted">Explora los puntos de interés. Haz clic en cada marcador para ver la descripción clínica.</p>
         </div>
-        <span class="status-pill ${status}">${statusLabel(status)}</span>
       </div>
-      <div class="flashcard">
-        <p class="kicker">Pregunta</p>
-        <strong>${escapeHtml(field(card, "Pregunta"))}</strong>
-        ${app.showFlashAnswer ? `<div class="flash-answer"><p class="kicker">Respuesta:</p>${escapeHtml(field(card, "Respuesta"))}</div>` : ""}
+      <div class="anatomy-controls action-row">
+        <button class="pill-btn active" data-anatomy-layer="muscles" type="button">Músculos Faciales</button>
+        <button class="pill-btn" data-anatomy-layer="lymph" type="button">Líneas de Drenaje</button>
       </div>
-      <div class="action-row">
-        <button class="primary-btn" data-show-flash type="button">${app.showFlashAnswer ? "Ocultar respuesta" : "Mostrar respuesta"}</button>
-        <button class="pill-btn" data-known-flash type="button">Lo sabía</button>
-        <button class="pill-btn secondary" data-review-flash type="button">Repasar otra vez</button>
-        <button class="pill-btn secondary" data-prev-flash type="button">Anterior</button>
-        <button class="pill-btn secondary" data-next-flash type="button">Siguiente</button>
-      </div>
+      <div id="anatomyMap"></div>
     </section>
   `;
-  $("[data-show-flash]").addEventListener("click", () => {
-    app.showFlashAnswer = !app.showFlashAnswer;
-    render();
+
+  // Delegación de botones de capa
+  view.querySelectorAll("[data-anatomy-layer]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      view.querySelectorAll("[data-anatomy-layer]").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      initAnatomyVisor(btn.dataset.anatomyLayer);
+    });
   });
-  $("[data-known-flash]").addEventListener("click", () => markFlashcard(card, "known"));
-  $("[data-review-flash]").addEventListener("click", () => markFlashcard(card, "review"));
-  $("[data-prev-flash]").addEventListener("click", () => {
-    app.flashIndex = (app.flashIndex - 1 + cards.length) % cards.length;
-    app.showFlashAnswer = false;
-    render();
+
+  setTimeout(() => initAnatomyVisor("muscles"), 60);
+}
+
+function initAnatomyVisor(layerType = "muscles") {
+  if (anatomyMapInstance) { anatomyMapInstance.remove(); anatomyMapInstance = null; }
+
+  anatomyMapInstance = L.map("anatomyMap", {
+    crs: L.CRS.Simple,
+    minZoom: -1,
+    maxZoom: 2,
+    zoomSnap: 0.25,
+    attributionControl: false
   });
-  $("[data-next-flash]").addEventListener("click", () => {
-    app.flashIndex = (app.flashIndex + 1) % cards.length;
-    app.showFlashAnswer = false;
-    render();
+
+  const bounds = [[0, 0], [1000, 1000]];
+  const imageUrl = layerType === "muscles"
+    ? "assets/anatomy/musculos_faciales.png"
+    : "assets/anatomy/sistema_linfatico.png";
+
+  L.imageOverlay(imageUrl, bounds).addTo(anatomyMapInstance);
+  anatomyMapInstance.fitBounds(bounds);
+
+  const hotspots = {
+    muscles: [
+      { coords: [820, 500], title: "Músculo Frontal", desc: "Eleva las cejas y genera arrugas horizontales de expresión. En masaje facial, se trabaja con movimientos ascendentes suaves." },
+      { coords: [740, 680], title: "Corrugador Superciliar", desc: "Frunce las cejas (líneas del entrecejo). Zona de mucha tensión emocional." },
+      { coords: [700, 350], title: "Orbicular de los Ojos", desc: "Cierra el párpado y protege el globo ocular. Cuidar presión en masajes perioculares; piel muy fina." },
+      { coords: [680, 750], title: "Temporal", desc: "Músculo de la masticación lateral. Se palpa al apretar los dientes. Acumula tensión por estrés." },
+      { coords: [600, 500], title: "Músculo Nasal", desc: "Comprime y ensancha la abertura nasal. Conecta con la respiración facial." },
+      { coords: [480, 680], title: "Cigomático Mayor", desc: "Eleva la comisura labial (sonrisa). Punto clave en masaje de elevación facial." },
+      { coords: [420, 500], title: "Orbicular de los Labios", desc: "Cierra y protruye los labios. Zona de arrugas peribucales (código de barras)." },
+      { coords: [370, 280], title: "Masetero", desc: "Principal músculo de la masticación. Zona crítica de tensión facial y bruxismo." },
+      { coords: [340, 400], title: "Buccinador", desc: "Comprime las mejillas contra los dientes. Actúa al soplar o succionar." },
+      { coords: [280, 500], title: "Mentoniano", desc: "Eleva y protruye el labio inferior. Genera arrugas en el mentón ('piel de naranja')." }
+    ],
+    lymph: [
+      { coords: [700, 720], title: "Ganglios Preauriculares", desc: "Drenan la región temporal, frontal y palpebral. Primera estación de drenaje facial lateral." },
+      { coords: [650, 280], title: "Ganglios Parotídeos", desc: "Asociados a la glándula parótida. Drenan la mejilla, nariz y párpado inferior." },
+      { coords: [400, 350], title: "Ganglios Submandibulares", desc: "Drenan la comisura labial, labio superior, mejillas y encías. Los más palpables en clínica." },
+      { coords: [340, 500], title: "Ganglios Submentonianos", desc: "Drenan el labio inferior, suelo de la boca y punta de la lengua." },
+      { coords: [250, 680], title: "Ganglios Cervicales Superficiales", desc: "Cadena a lo largo de la vena yugular externa. Recogen linfa de toda la cara." },
+      { coords: [150, 500], title: "Ganglios Cervicales Profundos", desc: "Cadena profunda paralela a la yugular interna. Estación final antes del conducto torácico." },
+      { coords: [80, 400], title: "Ganglios Supraclaviculares", desc: "Última estación cervical. La linfa drena al conducto torácico o al conducto linfático derecho." }
+    ]
+  };
+
+  const markerStyle = layerType === "muscles"
+    ? { radius: 10, color: "#b99cff", fillColor: "#d8b4fe", fillOpacity: 0.85, weight: 2 }
+    : { radius: 10, color: "#81e6c6", fillColor: "#a7f3d0", fillOpacity: 0.85, weight: 2 };
+
+  const activePoints = hotspots[layerType] || [];
+  activePoints.forEach((point) => {
+    L.circleMarker(point.coords, { ...markerStyle, className: "anatomy-hotspot" })
+      .addTo(anatomyMapInstance)
+      .bindPopup(`
+        <div class="anatomy-popup">
+          <strong>${escapeHtml(point.title)}</strong>
+          <p>${escapeHtml(point.desc)}</p>
+        </div>
+      `, { maxWidth: 280, className: "anatomy-popup-wrapper" });
   });
 }
 
@@ -966,14 +1157,29 @@ function saveDiagnosisDraft() {
 
 function diagnosisResultMarkup(input) {
   const result = diagnosisResult(input);
+  const alertBlock = result.level === "rojo" ? `
+    <div class="biosafety-alert">
+      <span class="biosafety-alert-icon">⚠️</span>
+      <div>
+        <strong>ALERTA DE SEGURIDAD</strong>
+        <p>No realizar práctica de estudio. Condición de riesgo detectada — derivar al médico.</p>
+      </div>
+    </div>` : "";
   return `
     <div class="diagnosis-output">
+      ${alertBlock}
       ${safetyChip(result.level)}
       <p><strong>Biotipo probable:</strong> ${escapeHtml(input.diagBiotype || "Por definir")}</p>
-      <p><strong>Condiciones probables:</strong> ${escapeHtml(result.conditions.join(", ") || "sin condición dominante clara")}</p>
-      <p><strong>Qué evitar hoy:</strong> ${escapeHtml(result.avoid.join(", ") || "evitar improvisar; trabajar conservador")}</p>
-      <p><strong>Aparatología sugerida o evitada:</strong> ${escapeHtml(result.devices)}</p>
+      <p><strong>Condiciones detectadas:</strong> ${escapeHtml(result.conditions.join(", ") || "sin condición dominante clara")}</p>
+      <p><strong>Qué evitar hoy:</strong> <span class="avoid-list">${escapeHtml(result.avoid.join(", ") || "evitar improvisar; trabajar conservador")}</span></p>
+      <p><strong>Aparatología:</strong> ${escapeHtml(result.devices)}</p>
       <p><strong>Recomendación educativa:</strong> ${escapeHtml(result.advice)}</p>
+      <div class="suggested-ingredients-block ${result.level === "rojo" ? "blocked-by-alert" : ""}">
+        <strong>Principios activos recomendados (de tu biblioteca):</strong>
+        <div class="ingredient-pills-row">
+          ${result.suggestedIngredients.map(ing => `<span class="ingredient-pill"><span class="ingredient-pill-dot"></span>${escapeHtml(ing.name)}<small>${escapeHtml(ing.category)}</small></span>`).join("") || `<span class="muted">No hay ingredientes sugeridos para este objetivo.</span>`}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1027,16 +1233,34 @@ function diagnosisResult(input) {
   }
   if (input.diagRosacea === "yes") {
     level = level === "rojo" ? "rojo" : "amarillo";
-    conditions.push("piel reactiva o rosácea sospechosa");
+    conditions.push("piel reactiva o rosácea de sospecha");
     avoid.push("calor", "vapor", "fricción intensa");
     devices = "Evitar calor y aparatos estimulantes; considerar derivación si hay brote.";
   }
-  if (input.diagGoal === "Firmeza" && level === "verde") {
-    level = "amarillo";
-    devices = "Radiofrecuencia solo con checklist, consentimiento y manual del equipo.";
-  }
 
-  return { level, conditions: unique(conditions), avoid: unique(avoid), devices, advice };
+  // BÚSQUEDA AUTOMÁTICA EN TU CSV DE INGREDIENTES
+  const targetGoal = (input.diagGoal || "Hidratación").toLowerCase();
+  const goalWords = targetGoal.split(/[\s,;/]+/).filter(w => w.length > 2);
+  const matchedIngredients = app.data.ingredients
+    .map((ing) => {
+      const idealFor = field(ing, "Ideal para").toLowerCase();
+      const funcion = field(ing, "Función").toLowerCase();
+      const combined = `${idealFor} ${funcion}`;
+      const score = goalWords.reduce((s, w) => s + (combined.includes(w) ? 1 : 0), 0);
+      return score > 0 ? { name: field(ing, "Ingrediente"), category: field(ing, "Categoría"), score } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+
+  return { 
+    level, 
+    conditions: unique(conditions), 
+    avoid: unique(avoid), 
+    devices, 
+    advice,
+    suggestedIngredients: matchedIngredients
+  };
 }
 
 function selectField(id, label, options, selected = "") {
@@ -1112,8 +1336,11 @@ function progressSummary() {
   const pendingFlashcards = app.data.flashcards.length - Object.values(app.store.flashcards).filter((card) => card.status === "known").length;
   const solvedCases = Object.keys(app.store.cases).length;
   const percent = Math.round((completedLessons / Math.max(totalLessons, 1)) * 100);
-  const currentWeek = Math.min(12, Math.max(1, Math.ceil((completedLessons + 1) / 4)));
-  return { completedLessons, totalLessons, approvedQuizzes, pendingFlashcards: Math.max(0, pendingFlashcards), solvedCases, percent, currentWeek };
+  const allWeeks = weeksList();
+  const totalWeeks = allWeeks.length || 1;
+  const lessonsPerWeek = Math.max(1, Math.ceil(totalLessons / totalWeeks));
+  const currentWeek = Math.min(totalWeeks, Math.max(1, Math.ceil((completedLessons + 1) / lessonsPerWeek)));
+  return { completedLessons, totalLessons, approvedQuizzes, pendingFlashcards: Math.max(0, pendingFlashcards), solvedCases, percent, currentWeek, totalWeeks };
 }
 
 function nextLesson() {
@@ -1160,7 +1387,10 @@ function weekTitle(week) {
     "Semana 11": "Protocolos completos",
     "Semana 12": "Casos finales y evaluación"
   };
-  return titles[week] || week;
+  if (titles[week]) return titles[week];
+  const lessons = app.data.lessons.filter((l) => field(l, "Semana") === week);
+  const tema = lessons.length ? field(lessons[0], "Tema") : "";
+  return tema || week;
 }
 
 function maybeAwardWeekComplete(week) {
@@ -1231,56 +1461,88 @@ function resetQuizRuntime() {
   app.quizScope = [];
 }
 
+function getBlankProfile() {
+  return {
+    lessons: {}, notes: {}, quizAttempts: {}, flashcards: {}, cases: {},
+    caseNotes: {}, protocols: {}, points: 0, pointLedger: {},
+    achievements: {}, activity: [], diagnosisDraft: {}
+  };
+}
+
 function loadStore() {
   const existing = JSON.parse(localStorage.getItem(appStateKey) || "null");
-  const store = existing || {
-    version: 2,
-    lessons: {},
-    notes: {},
-    quizAttempts: {},
-    flashcards: {},
-    cases: {},
-    caseNotes: {},
-    protocols: {},
-    points: 0,
-    pointLedger: {},
-    achievements: {},
-    activity: [],
-    diagnosisDraft: {}
-  };
-  store.lessons ||= {};
-  store.notes ||= {};
-  store.quizAttempts ||= {};
-  store.flashcards ||= {};
-  store.cases ||= {};
-  store.caseNotes ||= {};
-  store.protocols ||= {};
-  store.pointLedger ||= {};
-  store.points ||= 0;
-  store.achievements ||= {};
-  store.activity ||= [];
-  store.diagnosisDraft ||= {};
+  
+  let globalStore;
+  if (!existing || existing.version < 3) {
+    globalStore = {
+      version: 3,
+      activeProfile: "ivania",
+      profiles: {
+        ivania: existing ? existing : getBlankProfile(),
+        ximena: getBlankProfile(),
+        admin: getBlankProfile()
+      },
+      customContent: {}
+    };
+    if (globalStore.profiles.ivania.version) delete globalStore.profiles.ivania.version;
+  } else {
+    globalStore = existing;
+  }
+  
+  globalStore.profiles.ivania = { ...getBlankProfile(), ...globalStore.profiles.ivania };
+  globalStore.profiles.ximena = { ...getBlankProfile(), ...globalStore.profiles.ximena };
+  globalStore.profiles.admin = { ...getBlankProfile(), ...globalStore.profiles.admin };
+  globalStore.customContent = globalStore.customContent || {};
 
-  const oldProgress = JSON.parse(localStorage.getItem(oldProgressKey) || "{}");
-  Object.entries(oldProgress).forEach(([title, done]) => {
-    if (done && !store.lessons[title]) store.lessons[title] = { completedAt: "migrated" };
-  });
-  const oldNotes = JSON.parse(localStorage.getItem(oldNotesKey) || "{}");
-  Object.entries(oldNotes).forEach(([title, note]) => {
-    if (note && !store.notes[title]) store.notes[title] = note;
-  });
-  localStorage.setItem(appStateKey, JSON.stringify(store));
-  return store;
+  app.globalStore = globalStore;
+  app.store = globalStore.profiles[globalStore.activeProfile];
+  
+  setTimeout(setupProfileSwitcher, 0);
+  return app.store;
 }
 
 function saveStore() {
-  localStorage.setItem(appStateKey, JSON.stringify(app.store));
-  localStorage.setItem(oldProgressKey, JSON.stringify(Object.fromEntries(Object.keys(app.store.lessons).map((title) => [title, true]))));
-  localStorage.setItem(oldNotesKey, JSON.stringify(app.store.notes));
+  localStorage.setItem(appStateKey, JSON.stringify(app.globalStore));
   updateGlobalChrome();
 }
 
-async function loadCsv(url) {
+function switchProfile(profileId) {
+  app.globalStore.activeProfile = profileId;
+  app.store = app.globalStore.profiles[profileId];
+  saveStore();
+  
+  if (app.view === "admin" && profileId !== "admin") app.view = "home";
+  
+  setupProfileSwitcher();
+  render();
+}
+
+function setupProfileSwitcher() {
+  const nameEl = document.getElementById("activeProfileName");
+  const avatarEl = document.getElementById("activeProfileAvatar");
+  
+  if (!nameEl || !avatarEl) return;
+
+  const active = app.globalStore.activeProfile;
+  const config = {
+    ivania: { name: "Ivania", initial: "I", color: "mint" },
+    ximena: { name: "Ximena", initial: "X", color: "lilac" },
+    admin: { name: "Administrador", initial: "A", color: "pink" }
+  };
+  const activeConfig = config[active];
+  
+  nameEl.textContent = activeConfig.name;
+  avatarEl.textContent = activeConfig.initial;
+  avatarEl.className = `profile-avatar ${activeConfig.color}`;
+  
+  const adminBtn = document.querySelector(".nav-btn.admin-only");
+  if (adminBtn) adminBtn.classList.toggle("hidden", active !== "admin");
+}
+
+async function loadCsv(url, key) {
+  if (app.globalStore && app.globalStore.customContent && app.globalStore.customContent[key]) {
+    return parseCsv(app.globalStore.customContent[key]);
+  }
   const text = await fetchText(url);
   return parseCsv(text);
 }
@@ -1488,3 +1750,84 @@ function escapeHtml(value = "") {
 function escapeAttr(value = "") {
   return escapeHtml(value);
 }
+
+/* ── Panel de Administración ── */
+
+function renderAdmin() {
+  view.innerHTML = `
+    <section class="admin-panel">
+      <div class="section-head">
+        <div>
+          <h2>Gestión de Contenido Local</h2>
+          <p class="muted">Sube archivos CSV para actualizar el plan de estudios. Los cambios se guardan localmente en tu navegador.</p>
+        </div>
+      </div>
+      
+      <div class="admin-grid">
+        <div class="academy-card file-upload-zone" id="uploadLessons">
+          <div class="file-upload-icon">📄</div>
+          <strong>Actualizar Lecciones (CSV)</strong>
+          <p class="muted" style="margin-top:8px;font-size:12px;">Arrastra o selecciona Lecciones.csv</p>
+          <input type="file" accept=".csv" data-csv-type="lessons">
+        </div>
+        
+        <div class="academy-card file-upload-zone" id="uploadFlashcards">
+          <div class="file-upload-icon">📇</div>
+          <strong>Actualizar Flashcards (CSV)</strong>
+          <p class="muted" style="margin-top:8px;font-size:12px;">Arrastra o selecciona Flashcards.csv</p>
+          <input type="file" accept=".csv" data-csv-type="flashcards">
+        </div>
+        
+        <div class="academy-card file-upload-zone" id="uploadIngredients">
+          <div class="file-upload-icon">🧪</div>
+          <strong>Actualizar Ingredientes (CSV)</strong>
+          <p class="muted" style="margin-top:8px;font-size:12px;">Arrastra o selecciona Ingredientes.csv</p>
+          <input type="file" accept=".csv" data-csv-type="ingredients">
+        </div>
+
+        <div class="academy-card file-upload-zone danger-zone">
+          <div class="file-upload-icon" style="color:var(--danger)">⚠️</div>
+          <strong style="color:var(--danger)">Restablecer Progreso</strong>
+          <p class="muted" style="margin-top:8px;font-size:12px;">Borrar progreso de Ivania o Ximena</p>
+          <div style="margin-top:14px; display:flex; gap:10px; justify-content:center;">
+            <button class="pill-btn" onclick="resetStudentProgress('ivania')">Reset Ivania</button>
+            <button class="pill-btn" onclick="resetStudentProgress('ximena')">Reset Ximena</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+
+  view.querySelectorAll("input[type='file']").forEach(input => {
+    input.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const type = input.dataset.csvType;
+      
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target.result;
+        app.globalStore.customContent[type] = text;
+        saveStore();
+        
+        // Reload that specific CSV immediately
+        app.data[type] = parseCsv(text);
+        
+        // Show success UI briefly
+        const zone = input.closest('.file-upload-zone');
+        const oldHtml = zone.innerHTML;
+        zone.innerHTML = `<div class="file-upload-icon" style="color:var(--mint)">✅</div><strong>Actualizado</strong>`;
+        setTimeout(() => { zone.innerHTML = oldHtml; }, 2000);
+      };
+      reader.readAsText(file);
+    });
+  });
+}
+
+window.resetStudentProgress = function(profileId) {
+  if (confirm(`¿Estás seguro de que quieres restablecer todo el progreso de ${profileId}?`)) {
+    app.globalStore.profiles[profileId] = getBlankProfile();
+    saveStore();
+    alert(`El progreso de ${profileId} ha sido reiniciado.`);
+  }
+};
