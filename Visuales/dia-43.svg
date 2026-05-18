@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Día 43 - Protocolo luminosidad/manchas">
+  <rect width="960" height="540" fill="#f8fbfa"/>
+  <rect x="38" y="38" width="884" height="464" rx="24" fill="white" stroke="#d9dfdd"/>
+  <text x="78" y="104" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#23756f">Semana 11 · Protocolos</text>
+  <text x="78" y="168" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800" fill="#1d2625">Día 43 - Protocolo luminosidad/manchas</text>
+  <foreignObject x="78" y="202" width="410" height="120"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Segoe UI,Arial,sans-serif;font-size:24px;line-height:1.35;color:#5c6866">Tratar tono con paciencia y seguridad</div></foreignObject>
+  <g><path d="M510 230c40-150 120-150 160 0" fill="none" stroke="#23756f" stroke-width="18" stroke-linecap="round"/><circle cx="590" cy="140" r="48" fill="#dcefeb"/></g>
+  <g transform="translate(78 374)">
+    <rect width="240" height="54" rx="12" fill="#dcefeb"/>
+    <text x="22" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#23756f">Mirar · decidir · cuidar</text>
+  </g>
+</svg>

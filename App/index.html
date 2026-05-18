@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ivania Facial Lab</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23181624'/%3E%3Cpath d='M18 38c8 8 20 8 28 0M20 27c3-8 21-8 24 0' fill='none' stroke='%23d8b4fe' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='25' cy='31' r='3' fill='%2386efac'/%3E%3Ccircle cx='39' cy='31' r='3' fill='%2386efac'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="academy-shell">
+      <aside class="sidebar" aria-label="Navegación principal">
+        <div class="brand">
+          <div class="brand-orb" aria-hidden="true">✦</div>
+          <div>
+            <p>Ivania Facial Lab</p>
+            <span>Tratamientos Faciales · Refuerzo personalizado</span>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-btn active" data-view="home">⌂ <span>Inicio</span></button>
+          <button class="nav-btn" data-view="roadmap">▦ <span>Ruta de 12 semanas</span></button>
+          <button class="nav-btn" data-view="today">◉ <span>Lección de hoy</span></button>
+          <button class="nav-btn" data-view="diagnosis">◇ <span>Diagnóstico guiado</span></button>
+          <button class="nav-btn" data-view="cases">▣ <span>Casos prácticos</span></button>
+          <button class="nav-btn" data-view="ingredients">◌ <span>Ingredientes</span></button>
+          <button class="nav-btn" data-view="protocols">☑ <span>Protocolos</span></button>
+          <button class="nav-btn" data-view="flashcards">◐ <span>Flashcards</span></button>
+          <button class="nav-btn" data-view="quizzes">? <span>Quizzes</span></button>
+          <button class="nav-btn" data-view="resources">↗ <span>Recursos</span></button>
+          <button class="nav-btn" data-view="progress">▰ <span>Progreso</span></button>
+          <button class="nav-btn" data-view="achievements">★ <span>Logros</span></button>
+        </nav>
+
+        <div class="sidebar-card">
+          <div class="metric-line">
+            <span>Avance general</span>
+            <strong id="sideProgressText">0%</strong>
+          </div>
+          <div class="progress-track"><div id="sideProgressBar"></div></div>
+          <div class="metric-line compact">
+            <span>Puntos</span>
+            <strong id="sidePoints">0</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="kicker" id="viewKicker">Academia local</p>
+            <h1 id="viewTitle">Inicio</h1>
+          </div>
+          <div class="toolbar">
+            <label class="field search-field">
+              <span>Buscar</span>
+              <input id="searchInput" type="search" placeholder="diagnóstico, barrera, niacinamida...">
+            </label>
+            <label class="field">
+              <span>Semana</span>
+              <select id="weekSelect" aria-label="Semana"></select>
+            </label>
+          </div>
+        </header>
+
+        <section id="view" class="view" aria-live="polite"></section>
+      </main>
+
+      <aside class="right-rail" aria-label="Resumen y actividad">
+        <section class="rail-card">
+          <p class="kicker">Sesión sugerida</p>
+          <h2 id="railLessonTitle">Cargando...</h2>
+          <p id="railLessonMeta" class="muted"></p>
+          <button id="railStartLesson" class="primary-btn" type="button">Empezar sesión</button>
+        </section>
+
+        <section class="rail-card">
+          <div class="rail-title">
+            <p class="kicker">Actividad reciente</p>
+            <span id="activityCount">0</span>
+          </div>
+          <div id="railActivity" class="activity-list"></div>
+        </section>
+
+        <section class="rail-card">
+          <p class="kicker">Seguridad</p>
+          <p class="muted small">Este curso es educativo. No sustituye clases, supervisión, manuales del equipo ni atención médica.</p>
+        </section>
+      </aside>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

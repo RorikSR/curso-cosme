@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Día 45 - Caso piel grasa congestionada">
+  <rect width="960" height="540" fill="#fffaf2"/>
+  <rect x="38" y="38" width="884" height="464" rx="24" fill="white" stroke="#d9dfdd"/>
+  <text x="78" y="104" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#b7791f">Semana 12 · Casos</text>
+  <text x="78" y="168" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800" fill="#1d2625">Día 45 - Caso piel grasa congestionada</text>
+  <foreignObject x="78" y="202" width="410" height="120"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Segoe UI,Arial,sans-serif;font-size:24px;line-height:1.35;color:#5c6866">Resolver caso completo</div></foreignObject>
+  <g><circle cx="560" cy="120" r="70" fill="#fff0d6"/><circle cx="620" cy="190" r="38" fill="#b7791f" opacity=".18"/></g>
+  <g transform="translate(78 374)">
+    <rect width="240" height="54" rx="12" fill="#fff0d6"/>
+    <text x="22" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#b7791f">Mirar · decidir · cuidar</text>
+  </g>
+</svg>
