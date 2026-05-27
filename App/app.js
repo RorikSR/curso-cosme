@@ -1,14 +1,14 @@
-const BASE = "..";
+const BASE = "data";
 
 const files = {
-  lessons: `${BASE}/Notion/Lecciones.csv`,
-  flashcards: `${BASE}/Notion/Flashcards.csv`,
-  quizzes: `${BASE}/Notion/Quizzes.csv`,
-  ingredients: `${BASE}/Notion/Ingredientes.csv`,
-  protocols: `${BASE}/Notion/Protocolos.csv`,
-  cases: `${BASE}/Notion/Casos prácticos.csv`,
-  resources: `${BASE}/Notion/Recursos.csv`,
-  visuals: `${BASE}/Notion/Visuales.csv`
+  lessons: `${BASE}/Lecciones.csv`,
+  flashcards: `${BASE}/Flashcards.csv`,
+  quizzes: `${BASE}/Quizzes.csv`,
+  ingredients: `${BASE}/Ingredientes.csv`,
+  protocols: `${BASE}/Protocolos.csv`,
+  cases: `${BASE}/Casos prácticos.csv`,
+  resources: `${BASE}/Recursos.csv`,
+  visuals: `${BASE}/Visuales.csv`
 };
 
 const oldProgressKey = "ivania-course-progress-v1";
@@ -147,7 +147,19 @@ function setupControls() {
   }
 }
 
+function resetSwiperAndMap() {
+  if (flashSwiper) {
+    try { flashSwiper.destroy(true, true); } catch(e) {}
+    flashSwiper = null;
+  }
+  if (anatomyMapInstance) {
+    try { anatomyMapInstance.remove(); } catch(e) {}
+    anatomyMapInstance = null;
+  }
+}
+
 function render() {
+  resetSwiperAndMap();
   $("#viewTitle").textContent = titleForView(app.view);
   $("#viewKicker").textContent = kickerForView(app.view);
   $("#weekSelect").value = app.week;
@@ -229,10 +241,13 @@ function renderHome() {
   const agenda = upcomingLessons(6);
   const recent = recentActivity(5);
 
+  const activeProfile = app.globalStore.activeProfile;
+  const displayName = activeProfile === "admin" ? "Administrador" : activeProfile === "ximena" ? "Ximena" : "Ivania";
+
   view.innerHTML = `
     <section class="hero-panel">
       <div>
-        <p class="kicker">Bienvenida, Ivania</p>
+        <p class="kicker">Bienvenida, ${escapeHtml(displayName)}</p>
         <h2>Semana actual: ${summary.currentWeek} de ${summary.totalWeeks}</h2>
         <p class="muted">Sesión sugerida de hoy: ${escapeHtml(today.week)} · ${escapeHtml(today.day)}</p>
       </div>
@@ -1790,13 +1805,24 @@ function renderAdmin() {
           <strong style="color:var(--danger)">Restablecer Progreso</strong>
           <p class="muted" style="margin-top:8px;font-size:12px;">Borrar progreso de Ivania o Ximena</p>
           <div style="margin-top:14px; display:flex; gap:10px; justify-content:center;">
-            <button class="pill-btn" onclick="resetStudentProgress('ivania')">Reset Ivania</button>
-            <button class="pill-btn" onclick="resetStudentProgress('ximena')">Reset Ximena</button>
+            <button class="pill-btn btn-reset-progress" data-profile="ivania">Reset Ivania</button>
+            <button class="pill-btn btn-reset-progress" data-profile="ximena">Reset Ximena</button>
           </div>
         </div>
       </div>
     </section>
   `;
+
+  view.querySelectorAll(".btn-reset-progress").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const profileId = btn.dataset.profile;
+      if (confirm(`¿Estás seguro de que quieres restablecer todo el progreso de ${profileId}?`)) {
+        app.globalStore.profiles[profileId] = getBlankProfile();
+        saveStore();
+        alert(`El progreso de ${profileId} ha sido reiniciado.`);
+      }
+    });
+  });
 
   view.querySelectorAll("input[type='file']").forEach(input => {
     input.addEventListener("change", (e) => {
@@ -1823,11 +1849,3 @@ function renderAdmin() {
     });
   });
 }
-
-window.resetStudentProgress = function(profileId) {
-  if (confirm(`¿Estás seguro de que quieres restablecer todo el progreso de ${profileId}?`)) {
-    app.globalStore.profiles[profileId] = getBlankProfile();
-    saveStore();
-    alert(`El progreso de ${profileId} ha sido reiniciado.`);
-  }
-};

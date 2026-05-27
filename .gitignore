@@ -13,3 +13,4 @@ Thumbs.db
 
 # Agent temp files
 .agents/
+.antigravitycli/

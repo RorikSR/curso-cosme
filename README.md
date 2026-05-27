@@ -8,7 +8,7 @@ Curso de refuerzo de 12 semanas para estudiar 1 hora diaria de lunes a jueves.
 2. Estudiar una leccion por dia.
 3. Usar la bitacora con cada modelo real.
 4. Repasar flashcards antes de cada sesion.
-5. Importar los CSV de `Notion/` cuando se quiera llevar el curso a Notion.
+5. Importar los CSV de `App/data/` cuando se quiera llevar el curso a Notion.
 
 ## Enfoque
 
@@ -22,7 +22,7 @@ Curso de refuerzo de 12 semanas para estudiar 1 hora diaria de lunes a jueves.
 
 - `Lecciones/`: 48 sesiones listas para estudiar.
 - `Material de apoyo/`: glosario, seguridad, ingredientes, protocolos, casos y recursos.
-- `Notion/`: tablas CSV compatibles con bases de datos de Notion.
+- `App/data/`: tablas CSV compatibles con bases de datos de Notion y usadas por la aplicación local.
 - `Visuales/`: 48 laminas SVG, una por leccion, para estudiar de forma visual.
 - `App/`: pagina local interactiva con progreso, quizzes, flashcards, casos con imagenes y recursos.
 
