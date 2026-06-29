@@ -14,3 +14,7 @@ Thumbs.db
 # Agent temp files
 .agents/
 .antigravitycli/
+
+# Node / testing
+node_modules/
+coverage/

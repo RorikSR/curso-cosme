@@ -1,0 +1,39 @@
+# ============================================================================
+# docker-compose.yml - Ivania Facial Lab (backend Node + cookie de sesión)
+# ----------------------------------------------------------------------------
+# Stack importable en Portainer. Un único servicio Node (Express) que sirve la
+# SPA y protege el contenido con login propio (bcrypt + cookie httpOnly).
+#
+# Variables de entorno (defínelas en Portainer o en un archivo .env):
+#   SESSION_SECRET  (OBLIGATORIA en producción) secreto para firmar la cookie.
+#   COOKIE_SECURE   "true" cuando se sirva por HTTPS (Cloudflare). Default false.
+#   HOST_PORT       puerto publicado en el host (default 8080).
+#   HASH_IVI / HASH_XIME / HASH_ADMIN  (opcional) hashes bcrypt para sobrescribir
+#                   las credenciales por defecto sin tocar la imagen.
+#
+# Con Cloudflare Tunnel, cloudflared (en la misma red) apunta a http://app:3000.
+# ============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ivania-facial-lab:latest
+    container_name: ivania-facial-lab
+    ports:
+      - "${HOST_PORT:-8080}:3000"
+    environment:
+      SESSION_SECRET: "${SESSION_SECRET:-}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+      # HASH_IVI: "$2b$12$..."
+      # HASH_XIME: "$2b$12$..."
+      # HASH_ADMIN: "$2b$12$..."
+    restart: unless-stopped
+    networks:
+      - ivania-net
+
+networks:
+  ivania-net:
+    name: ivania-net
+    driver: bridge

@@ -8,31 +8,33 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="styles.css">  </head>
+    <!-- Leaflet y Swiper se cargan de forma diferida (lazy load) desde app.js
+         mediante loadExternal()/ensureLeaflet()/ensureSwiper(), solo al entrar
+         a las vistas que los usan (Anatomía Facial y Flashcards). Por eso ya no
+         se incluyen aquí en el <head>: así no penalizan la carga inicial en
+         móvil (R11.1). Google Fonts y Firebase se mantienen como estaban. -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  </head>
   <body>
     <div class="academy-shell">
       <aside class="sidebar" aria-label="Navegación principal">
-        <div class="profile-switcher">
-          <button id="profileBtn" class="profile-btn" aria-haspopup="true" aria-expanded="false">
-            <span id="activeProfileAvatar" class="profile-avatar mint">I</span>
-            <span id="activeProfileName">Ivania</span>
-            <span class="profile-chevron">▼</span>
-          </button>
-          <div id="profileDropdown" class="profile-dropdown hidden">
-            <button class="profile-option" data-profile="ivania">
-              <span class="profile-avatar mint">I</span> Ivania
-            </button>
-            <button class="profile-option" data-profile="ximena">
-              <span class="profile-avatar lilac">X</span> Ximena
-            </button>
-            <button class="profile-option" data-profile="admin">
-              <span class="profile-avatar pink">A</span> Administrador
-            </button>
+        <!-- Control de sesión real (reemplaza el antiguo profile switcher cosmético).
+             Muestra el rol de la sesión activa (Administrador/Estudiante) y permite
+             cerrar sesión. La lógica vive en setupProfileSwitcher() y el botón de
+             logout se cablea en setupControls(). R5.1, R5.2, R3.1, R3.2. -->
+        <div class="session-control">
+          <div class="session-id">
+            <span id="sessionRoleAvatar" class="profile-avatar mint">E</span>
+            <div class="session-id-text">
+              <span id="sessionRoleName">Estudiante</span>
+              <small class="session-role-caption">Sesión activa</small>
+            </div>
           </div>
+          <button id="logoutBtn" class="session-logout-btn" type="button">Cerrar sesión</button>
         </div>
 
         <div class="brand">
@@ -95,6 +97,13 @@
         </header>
 
         <section id="view" class="view" aria-live="polite"></section>
+
+        <!-- Acceso a "Empezar sesión" y actividad reciente en móvil (tarea 5.4 / R10).
+             El Right_Rail se oculta bajo 1180px; este bloque reubica esa información
+             dentro del flujo de contenido. Solo es visible en la Interfaz_Movil
+             (CSS @media max-width:1180px); su contenido lo rellena el JS en cada
+             render vía renderMobileSessionAccess(). No duplica el id #railStartLesson. -->
+        <section id="mobileSessionAccess" class="mobile-session-access" aria-label="Sesión sugerida y actividad reciente"></section>
       </main>
 
       <aside class="right-rail" aria-label="Resumen y actividad">
@@ -118,6 +127,44 @@
           <p class="muted small">Este curso es educativo. No sustituye clases, supervisión, manuales del equipo ni atención médica.</p>
         </section>
       </aside>
+    </div>
+
+    <!-- Pantalla de login (overlay sobre .academy-shell). La lógica de mostrar/ocultar la implementa la tarea 3.2. -->
+    <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="login-orb" aria-hidden="true">✦</div>
+          <div>
+            <p id="loginTitle">Ivania Facial Lab</p>
+            <span>Acceso al curso · Contenido educativo restringido</span>
+          </div>
+        </div>
+
+        <form id="loginForm" class="login-form" novalidate autocomplete="on">
+          <label class="login-field" for="loginUser">
+            <span>Usuario</span>
+            <input id="loginUser" name="username" type="text" autocomplete="username"
+                   autocapitalize="none" autocorrect="off" spellcheck="false"
+                   placeholder="Tu usuario" required>
+          </label>
+
+          <label class="login-field" for="loginPass">
+            <span>Contraseña</span>
+            <input id="loginPass" name="password" type="password" autocomplete="current-password"
+                   placeholder="Tu contraseña" required>
+          </label>
+
+          <p id="loginError" class="login-error hidden" role="alert" aria-live="assertive">
+            Usuario o contraseña incorrectos
+          </p>
+
+          <button id="loginSubmit" type="submit" class="primary-btn full">Iniciar sesión</button>
+        </form>
+
+        <p class="login-footnote muted small">
+          Este curso es educativo y de acceso restringido. Solicita tus credenciales a tu instructora.
+        </p>
+      </div>
     </div>
 
     <script src="app.js"></script>

@@ -1,0 +1,43 @@
+# ============================================================================
+# .dockerignore - Ivania Facial Lab
+# ----------------------------------------------------------------------------
+# El Dockerfile copia package.json, package-lock.json, server/ y App/. El resto
+# se excluye del contexto de build para imágenes más ligeras. node_modules se
+# excluye a propósito: la imagen instala dependencias con `npm ci` dentro.
+# ============================================================================
+
+# Dependencias (se instalan dentro de la imagen)
+node_modules/
+coverage/
+
+# Specs, reglas de agentes y temporales
+.kiro/
+.agents/
+.antigravitycli/
+
+# Control de versiones
+.git/
+.gitignore
+.gitattributes
+
+# Tests y config de test (no se ejecutan en la imagen)
+tests/
+vitest.config.js
+vitest.config.ts
+
+# Configuración del propio empaquetado
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentación y material de autoría fuera de App/
+*.md
+Material de apoyo/
+LICENSE
+deploy/
+
+# Archivos del sistema operativo / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
